@@ -20,7 +20,7 @@ public class InputManager : MonoBehaviour
         instance = this;
     }
 
-    public void MovedPresed(InputAction.CallbackContext context)
+    public void Move(InputAction.CallbackContext context)
     {
         if (context.performed)
         {
