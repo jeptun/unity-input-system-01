@@ -24,16 +24,11 @@ public class ComponentCaro : MonoBehaviour
 
     [SerializeField] GameObject wheeleShape;
     WheelCollider[] m_wheels;
-    public WheelCollider wheelColliderLeftFront;
-    public WheelCollider wheelColliderRightFront;
-    public WheelCollider wheelColliderLeftBack;
-    public WheelCollider wheelColliderRightBack;
-    public Transform wheelLeftFront;
-    public Transform wheelRightFront;
-    public Transform wheelLeftBack;
-    public Transform wheelRightBack;
+    // public WheelCollider wheelColliderLeftFront;
+    // public WheelCollider wheelColliderRightFront;
+    // public WheelCollider wheelColliderLeftBack;
+    // public WheelCollider wheelColliderRightBack;
 
-    //  WheelCollider[] m_wheels;
     [SerializeField] float criticalSpeed = 5f;
     [SerializeField] int stepBelow = 5;
     [SerializeField] int stepAbovve = 1;
@@ -49,7 +44,7 @@ public class ComponentCaro : MonoBehaviour
     bool isMoving = false;
     bool disableMovement = false;
     private float handBreake, torque;
-    public float angle;
+    private float angle;
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
@@ -60,10 +55,6 @@ public class ComponentCaro : MonoBehaviour
         handBreakeInputAction = gameplayActionMap.FindAction("HandBrake");
         steeringInputAction = gameplayActionMap.FindAction("SteeringAngle");
         accelerationInputAction = gameplayActionMap.FindAction("Acceleration");
-
-        handBreakeInputAction.Enable();
-        steeringInputAction.Enable();
-        accelerationInputAction.Enable();
 
         handBreakeInputAction.performed += GetHandBrakeInput;
         handBreakeInputAction.canceled += GetHandBrakeInput;
@@ -91,46 +82,29 @@ public class ComponentCaro : MonoBehaviour
         }
     }
 
-    private void FixedUpdate()
+    private void Update()
     {
 
-        wheelColliderLeftFront.ConfigureVehicleSubsteps(criticalSpeed, stepBelow, stepAbovve);
-        wheelColliderRightFront.ConfigureVehicleSubsteps(criticalSpeed, stepBelow, stepAbovve);
-        wheelColliderLeftBack.ConfigureVehicleSubsteps(criticalSpeed, stepBelow, stepAbovve);
-        wheelColliderRightBack.ConfigureVehicleSubsteps(criticalSpeed, stepBelow, stepAbovve);
+        m_wheels[0].ConfigureVehicleSubsteps(criticalSpeed, stepBelow, stepAbovve);
 
-        if (wheelColliderLeftFront.transform.localPosition.z > 0 && wheelColliderRightFront.transform.localPosition.z > 0)
-        {
-            wheelColliderLeftFront.motorTorque = torque;
-            wheelColliderRightFront.motorTorque = torque;
-        }
-        // if (wheelColliderLeftFront.transform.rotation.z > 0 && wheelColliderRightFront.transform.rotation.z > 0)
-        // {
-        //     wheelColliderLeftFront.steerAngle = angle;
-        //     wheelColliderRightFront.steerAngle = angle;
-        // }
-
-        // Quaternion quat;
-        // Vector3 pos;
-
-        // wheelColliderLeftFront.GetWorldPose(out pos, out quat);
-        // wheelLeftFront.position = pos;
-        // wheelLeftFront.rotation = quat * Quaternion.Euler(0, 180, 0); ;
-
-        // wheelColliderRightFront.GetWorldPose(out pos, out quat);
-        // wheelRightFront.position = pos;
-        // wheelRightFront.rotation = quat * Quaternion.Euler(0, 180, 0);
-
-        // wheelColliderLeftBack.GetWorldPose(out pos, out quat);
-        // wheelLeftBack.position = pos;
-        // wheelLeftBack.rotation = quat;
-
-        // wheelColliderRightBack.GetWorldPose(out pos, out quat);
-        // wheelRightBack.position = pos;
-        // wheelRightBack.rotation = quat;
 
         foreach (WheelCollider wheel in m_wheels)
         {
+
+
+            // if (wheel.transform.rotation.z > 0)
+            // {
+            //     wheel.steerAngle = angle;
+            // }
+            // if (wheel.transform.localPosition.z < 0)
+            // {
+            //     wheel.motorTorque = torque;
+            // }
+            // if (wheel.transform.localPosition.z > 0)
+            // {
+            //     wheel.motorTorque = torque;
+            // }
+
             if (wheeleShape)
             {
                 Quaternion quat;
@@ -153,6 +127,7 @@ public class ComponentCaro : MonoBehaviour
                     shapeTransform.position = pos;
                 }
             }
+
         }
 
     }
@@ -177,14 +152,17 @@ public class ComponentCaro : MonoBehaviour
 
     private void OnEnable()
     {
+        handBreakeInputAction.Enable();
+        steeringInputAction.Enable();
+        accelerationInputAction.Enable();
 
     }
-    // private void OnDisable()
-    // {
-    //     handBreakeInputAction.Disable();
-    //     steeringInputAction.Disable();
-    //     accelerationInputAction.Disable();
-    // }
+    private void OnDisable()
+    {
+        handBreakeInputAction.Disable();
+        steeringInputAction.Disable();
+        accelerationInputAction.Disable();
+    }
 
 
 }
