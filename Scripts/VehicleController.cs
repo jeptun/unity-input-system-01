@@ -7,29 +7,33 @@ using UnityEngine.InputSystem;
 
 
 //
+//? Udelat console log na start stop inputu kdy se volaji a jestli skonci
+//! Kouknout na event pre Input sysyem komponentu primo na BVP
+//! udelat pekne promene hned na zacatku at se v tom da orientovat
 //
-//Udelat console log na start stop inputu kdy se volaji a jestli skonci
-//
-//
-
 
 
 
 public enum DriveType { RearWheelDrive, FrontWheelDrive, AllWheelDrive }
 public class VehicleController : MonoBehaviour
 {
+
+    /**
+    * *set med
+    * @param {string}
+    **/
     [SerializeField] float maxAngle = 30f;
     [SerializeField] float maxTorque = 30f;
     [SerializeField] float breakeTorque = 30000f;
 
     [SerializeField] GameObject wheeleShape;
-
+    WheelCollider[] m_wheels;
     [SerializeField] float criticalSpeed = 5f;
     [SerializeField] int stepBelow = 5;
     [SerializeField] int stepAbovve = 1;
 
     [SerializeField] DriveType driveType;
-    WheelCollider[] m_wheels;
+
     float handBreake, torque;
     public float angle;
 
@@ -62,16 +66,49 @@ public class VehicleController : MonoBehaviour
     private void Start()
     {
         m_wheels = GetComponentsInChildren<WheelCollider>();
-        for( int i = 0; i < m_wheels.Length; i++)
+        for (int i = 0; i < m_wheels.Length; i++)
         {
             var wheel = m_wheels[i];
             if (wheeleShape != null)
             {
                 var ws = Instantiate(wheeleShape);
-                    ws.transform.parent = wheel.transform;
+                ws.transform.parent = wheel.transform;
             }
         }
     }
+
+    void GetHandBrakeInput(InputAction.CallbackContext context)
+    {
+        handBreake = context.ReadValue<float>() * breakeTorque;
+        Debug.Log("GetHandBrakeInput metoda");
+    }
+
+    void GetAngleInput(InputAction.CallbackContext context)
+    {
+        angle = context.ReadValue<float>() * maxAngle;
+        Debug.Log("GetAngleInput metoda");
+    }
+
+    void GetTorqueInput(InputAction.CallbackContext context)
+    {
+        torque = context.ReadValue<float>() * maxTorque;
+        Debug.Log("GetTorqueInput metoda");
+    }
+
+    private void OnEnable()
+    {
+        handBreakeInputAction.Enable();
+        steeringInputAction.Enable();
+        accelerationInputAction.Enable();
+    }
+    private void OnDisable()
+    {
+        handBreakeInputAction.Disable();
+        steeringInputAction.Disable();
+        accelerationInputAction.Disable();
+    }
+
+
     void Update()
     {
         m_wheels[0].ConfigureVehicleSubsteps(criticalSpeed, stepBelow, stepAbovve);
@@ -121,32 +158,4 @@ public class VehicleController : MonoBehaviour
             }
         }
     }
-    void GetHandBrakeInput(InputAction.CallbackContext context)
-    {
-        handBreake = context.ReadValue<float>() * breakeTorque;
-    }
-
-    void GetAngleInput(InputAction.CallbackContext context)
-    {
-        angle = context.ReadValue<float>() * maxAngle;
-    }
-
-    void GetTorqueInput(InputAction.CallbackContext context)
-    {
-        torque = context.ReadValue<float>() * maxTorque;
-    }
-
-    private void OnEnable()
-    {
-        handBreakeInputAction.Enable();
-        steeringInputAction.Enable();
-        accelerationInputAction.Enable();
-    }
-    private void OnDisable()
-    {
-        handBreakeInputAction.Disable();
-        steeringInputAction.Disable();
-        accelerationInputAction.Disable();
-    }
-
 }
