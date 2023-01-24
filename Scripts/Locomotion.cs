@@ -74,7 +74,7 @@ public class Locomotion : MonoBehaviour
 
     }
 
-    void Update()
+    void FixedUpdate()
     {
         //Přiřazení input akce ktera je vytvořena v GUI INPUTU
         Vector2 moveInput = playerInput.actions["Move"].ReadValue<Vector2>();
