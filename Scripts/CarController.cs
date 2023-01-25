@@ -1,95 +1,182 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+
+public enum WheelDrive { FrontWheel, RearWheel, FourWheel };
 public class CarController : MonoBehaviour
 
 {
-    [SerializeField] float motorThrust = 100f;
-    Vector2 moveDirection= Vector2.zero;
-    private Rigidbody rb;
+    /**
+   **NASTAVENI VOZIDLA"
+   */
+    [Header("NASTAVENI  VOZIDLA")]
+    [Tooltip("Náhon kol")]
+    [SerializeField] private WheelDrive wheelDrive;
+    [Tooltip("Nastav sílu motoru")]
+    [SerializeField] private float torque = 950f;
+
+    [Tooltip("Udej maximální náklon kol")]
+    [SerializeField] private float maxSteeringAngle = 30f;
+
+    [Tooltip("Nasatv brzdu motoru")]
+    [SerializeField] private float maxBraking = 8000f;
+    [Space(20)]
+    /**
+    **NASTAVENÍ KOL VOZIDLA"
+    */
+    [Header("KOLA VOZIDLA")]
+    [Tooltip("Priřaď collidery kol")]
+    [SerializeField] private WheelCollider[] wheelColliders;
+    /**
+    **EFEKTY VOZIDLA"
+    */
+    [Header("EFEKTY VOZIDLA")]
+    [Tooltip("Kouř pneumatik")]
+    [SerializeField] private ParticleSystem wheelSmokePrefab;
+
+    [Tooltip("Přiřad Audio pro zvuk brzdy")]
+    [SerializeField] private AudioClip skidSoundEffect;
+
+    [Tooltip("Čaš interv. pro brzdící zvuk a kouř")]
+    [SerializeField] private float skidTreshold = 0.4f;
+
+    /**
+    **PRIVÁTNÍ HODNOTY"
+    */
+    private ParticleSystem[] wheelSmokes = new ParticleSystem[4];
+    private PlayerInput playerInput;
+    private float braking;
+    private AudioSource audioSource;
 
 
     private void Awake()
     {
-        rb = GetComponent<Rigidbody>();
+
+        playerInput = GetComponent<PlayerInput>();
+
+        if (playerInput == null)
+        {
+            Debug.LogError("Vozidlo nema player input");
+        }
+
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            Debug.LogError("Vozidlo nema zvuk brzdeni");
+        }
+
+        // vytvořeni kouře pneumatik
+        for (int i = 0; i < wheelColliders.Length; i++)
+        {
+            wheelSmokes[i] = Instantiate(wheelSmokePrefab);
+            wheelSmokes[i].Stop();
+        }
+
     }
 
-    private void FixedUpdate()
+    void FixedUpdate()
     {
-        HandleInput();
-        MoveUp();
+        //Přiřazení input akce ktera je vytvořena v GUI INPUTU
+        Vector2 moveInput = playerInput.actions["Move"].ReadValue<Vector2>();
+        float acc = moveInput.y;
+        float steering = moveInput.x;
+
+        Move(acc, steering, braking);
+        skidCheck();
     }
-        private void HandleInput()
+
+    //Otacení kol a pohyb vozidla
+    private void Move(float acceleration, float steering, float braking)
     {
-        moveDirection = InputManager.instance.GetMoveDirection();
+        Quaternion quat;
+        Vector3 position;
+
+        // Mathf.Clamp
+        // Upevní danou hodnotu mezi zadané minimální a maximální hodnoty float.
+        // Vrátí zadanou hodnotu, pokud se nachází v minimálním a maximálním rozsahu.
+        // https://docs.unity3d.com/2022.2/Documentation/ScriptReference/Mathf.Clamp.html
+        acceleration = Mathf.Clamp(acceleration, -1f, 1f);
+
+        steering = Mathf.Clamp(steering, -1f, 1f) * maxSteeringAngle;
+
+        braking = Mathf.Clamp(braking, -1, 1) * maxBraking;
+
+        // calculate the thrust torque
+        float thrustTorque = acceleration * torque;
+
+        // aplikuje silu na kola
+        for (int i = 0; i < wheelColliders.Length; i++)
+        {
+
+            //Podminky na náhok kol
+            if (wheelDrive != WheelDrive.FrontWheel && wheelDrive != WheelDrive.FourWheel)
+            {
+                wheelColliders[2].motorTorque = thrustTorque;
+                wheelColliders[3].motorTorque = thrustTorque;
+            }
+            else if (wheelDrive != WheelDrive.RearWheel && wheelDrive != WheelDrive.FourWheel)
+            {
+                wheelColliders[0].motorTorque = thrustTorque;
+                wheelColliders[1].motorTorque = thrustTorque;
+            }
+            else
+            {
+                wheelColliders[i].motorTorque = thrustTorque;
+            }
+            //zatacení kol
+            if (i < 2)
+            {
+                wheelColliders[i].steerAngle = steering;
+            }
+            else
+            {
+                wheelColliders[i].brakeTorque = braking;
+            }
+
+            wheelColliders[i].GetWorldPose(out position, out quat);
+
+            // Aplikovaní zmeny polohy na colider kola a tím auta
+            wheelColliders[i].transform.GetChild(0).transform.position = position;
+            // pusobení rotace na mesh kola
+            wheelColliders[i].transform.GetChild(0).transform.rotation = quat;
+        }
     }
 
-    public void MoveUp()
+    public void Braking(InputAction.CallbackContext context)
     {
-        rb.AddRelativeForce(Vector3.up * motorThrust * Time.fixedDeltaTime);
+        Debug.Log(context);
+        if (context.started) braking = 1.0f;
+        else if (context.canceled) braking = 0.0f;
     }
 
-   
-    //public float speed;
-    //private Vector2 move;
+    //Metoda pro kouř a zvuk pneumatik
+    private void skidCheck()
+    {
+        int skidCount = 0;
 
-    //public void OnMove(InputAction.CallbackContext context)
-    //{
-    //    move= context.ReadValue<Vector2>();
-    //}
+        for (int i = 0; i < wheelColliders.Length; i++)
+        {
+            WheelHit wheelHit;
 
-    //private void Update()
-    //{
-    //    movePlayer();
-    //}
+            wheelColliders[i].GetGroundHit(out wheelHit);
 
-    //private void movePlayer()
-    //{
-    //        Vector3 movement = new Vector3(move.x, 0f, move.y);
+            if (Mathf.Abs(wheelHit.forwardSlip) >= skidTreshold ||
+               Mathf.Abs(wheelHit.sidewaysSlip) >= skidTreshold)
+            {
+                skidCount++;
+                if (!audioSource.isPlaying)
+                {
+                    audioSource.PlayOneShot(skidSoundEffect);
+                }
 
-    //        transform.Translate(movement * speed * Time.deltaTime, Space.World);
-    //}
+                wheelSmokes[i].transform.position = wheelColliders[i].transform.position - wheelColliders[i].transform.up * wheelColliders[i].radius;
+                wheelSmokes[i].Emit(1);
+            }
+        }
 
-    //[Header("Movement Params")]
-    //[SerializeField] private float runSpeed = 6.0f;
-
-    //private BoxCollider box;
-    //private Rigidbody rb;
-
-    ///*
-    // * parametr pro input movement
-    // */
-    //Vector2 moveDirection = Vector2.zero;
-
-    //private Vector2 move;
-    //private void Awake()
-    //{
-    //    box = GetComponent<BoxCollider>();
-    //    rb = GetComponent<Rigidbody>();
-    //    //  move= GetComponent<Vector2>();
-    //}
-
-    //// Update is called once per frame
-    //public void Update()
-    //{
-    //    HandleInput();
-    //    HandleMovement();
-    //}
-    //private void HandleInput()
-    //{
-    //    moveDirection = InputManager.instance.GetMoveDirection();
-    //}
-    //public void HandleMovement()
-    //{
-    //    moveDirection = InputManager.instance.GetMoveDirection();
-    //    Vector3 vector3 = new Vector3(moveDirection.x, 0f, moveDirection.y);
-
-    //    transform.Translate(vector3 * runSpeed * Time.deltaTime, Space.World);
-
-    //    // rb.velocity = new Vector2(moveDirection.x * runSpeed, rb.velocity.y);
-    //    // rb.AddForce(new Vector3(moveDirection.x, 0, moveDirection.y) * runSpeed, ForceMode.Force);
-    //}
-
+        if (skidCount == 0 && audioSource.isPlaying)
+        {
+            audioSource.Stop();
+        }
+    }
 }
